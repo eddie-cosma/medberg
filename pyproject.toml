@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medberg"
+version = "0.0.1"
+authors = [
+  { name="Eddie Cosma", email="eddie.cosma@gmail.com" },
+]
+description = "Download files from the Cencora secure file transfer site"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["amerisource", "cencora"]
+
+[project.urls]
+Homepage = "https://gitlab.com/eddiecosma/medberg"
+Issues = "https://gitlab.com/eddiecosma/medberg/-/issues"
