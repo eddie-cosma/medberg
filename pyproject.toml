@@ -19,5 +19,5 @@ classifiers = [
 keywords = ["amerisource", "cencora"]
 
 [project.urls]
-Homepage = "https://gitlab.com/eddiecosma/medberg"
-Issues = "https://gitlab.com/eddiecosma/medberg/-/issues"
+Homepage = "https://github.com/eddie-cosma/medberg"
+Issues = "https://github.com/eddie-cosma/medberg/issuess"
