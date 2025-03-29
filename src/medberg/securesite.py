@@ -1,20 +1,60 @@
 import re
 import shutil
+from datetime import datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
+from bs4 import BeautifulSoup
+
+
+class File:
+    def __init__(self, conn, name: str, filesize: str, date: datetime):
+        self._conn = conn
+        self.name = name
+        self.filesize = filesize
+        self.date = date
+
+    def __repr__(self) -> str:
+        date = datetime.strftime(self.date, "%m/%d/%Y")
+        return f'File(name={self.name}, filesize={self.filesize=}, {date=})'
+
+    def get(
+            self,
+            save_dir: str | Path | None = None,
+            save_name: str | None = None
+    ) -> Path:
+        """Download file from Amerisource secure site"""
+
+        if save_dir is None:
+            save_dir = Path.cwd()
+        elif isinstance(save_dir, str):
+            save_dir = Path(save_dir)
+
+        if save_name is None:
+            save_name = self.name
+
+        contract_post_data = urlencode(
+            {
+                "custNmaeSelect": self._conn._customer_name,
+                "fileChk": f"#{self.name}",
+                "dnldoption": "none",
+                "submit": "Download+Now",
+            }
+        ).encode()
+        contract_post_request = Request(
+            f"{self._conn._base_url}/fileDownloadtolocal.action", data=contract_post_data
+        )
+        with self._conn._opener.open(contract_post_request) as contract_post_response:
+            with open(save_dir / save_name, "wb") as price_file:
+                shutil.copyfileobj(contract_post_response, price_file)
+
+        return save_dir / save_name
+
 
 class SecureSite:
     """Class for Amerisource tenant account. Used for connection and enumeration."""
-
-    FILENAME_PATTERN = re.compile(
-        r'<input type="checkbox" name="fileChk" value="([\w\d\._]+?)" id="fileDownload_fileChk"\/>'
-    )
-    CUSTOMER_PATTERN = re.compile(
-        r'<input type="hidden" name="custName" value="([\w\d\s\._\-]+?)" id="fileDownload_custName"\/>'
-    )
 
     def __init__(
         self,
@@ -30,12 +70,11 @@ class SecureSite:
         self._password = password
         self._base_url = base_url
 
-        self.files = []
+        self._soup = self._connect_and_retrieve_html()
+        self._customer_name = self._parse_customer()
+        self.files = self._parse_files()
 
-        self._customer_name = None
-        self._connect_and_list_files()
-
-    def _connect_and_list_files(self):
+    def _connect_and_retrieve_html(self) -> BeautifulSoup:
         """Get a list of filenames from the Amerisource secure site.
 
         Raises exception if list of files is not obtained.
@@ -56,40 +95,32 @@ class SecureSite:
             f"{self._base_url}/welcome.action", data=login_post_data
         )
         with self._opener.open(login_post_request) as login_post_response:
-            contract_list_html = login_post_response.read().decode()
-            files = re.findall(self.FILENAME_PATTERN, contract_list_html)
-            for file_ in files:
-                self.files.append(file_)
+            raw_html = login_post_response.read().decode()
+            return BeautifulSoup(raw_html, "html.parser")
 
-            customer_match = re.findall(self.CUSTOMER_PATTERN, contract_list_html)
-            self._customer_name = customer_match[0]
+    def _parse_customer(self) -> str:
+        return self._soup.find(id='fileDownload_custName')['value']
 
-        if not self.files or not self._customer_name:
-            # TODO: Make exception more specific
-            raise Exception("Unable to get file list.")
+    def _parse_files(self) -> list[File]:
+        files = []
+        for row in self._soup.find(id='fileDownload').find_all('tr'):
+            if not row.find(id='fileDownload_fileChk'):
+                # If there is no file in this table row, move on
+                continue
 
-    def get_file(self, filename: str, save_dir: [str | Path | None] = None) -> Path:
+            date_tags = row.find_all(title="Date/Time Uploaded")
+            date_string = [part.get_text(strip=True) for part in date_tags]
+            date_string = " ".join(date_string)
+
+            files.append(File(
+                conn=self,
+                name=row.find(id="fileDownload_fileChk")['value'],
+                filesize=row.find(title="#size# Bytes").get_text(strip=True),
+                date=datetime.strptime(date_string, "%m/%d/%Y %I:%M:%S %p"),
+            ))
+
+        return files
+
+    def get_file(self, file: File, *args, **kwargs) -> Path:
         """Download file from Amerisource secure site"""
-
-        if not save_dir:
-            save_dir = Path.cwd()
-
-        if type(save_dir) is str:
-            save_dir = Path(save_dir)
-
-        contract_post_data = urlencode(
-            {
-                "custNmaeSelect": self._customer_name,
-                "fileChk": f"#{filename}",
-                "dnldoption": "none",
-                "submit": "Download+Now",
-            }
-        ).encode()
-        contract_post_request = Request(
-            f"{self._base_url}/fileDownloadtolocal.action", data=contract_post_data
-        )
-        with self._opener.open(contract_post_request) as contract_post_response:
-            with open(save_dir / filename, "wb") as price_file:
-                shutil.copyfileobj(contract_post_response, price_file)
-
-        return save_dir / filename
+        return file.get(*args, **kwargs)
