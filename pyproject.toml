@@ -20,4 +20,4 @@ keywords = ["amerisource", "cencora"]
 
 [project.urls]
 Homepage = "https://github.com/eddie-cosma/medberg"
-Issues = "https://github.com/eddie-cosma/medberg/issuess"
+Issues = "https://github.com/eddie-cosma/medberg/issues"
