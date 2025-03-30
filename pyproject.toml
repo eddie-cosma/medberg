@@ -11,6 +11,9 @@ authors = [
 description = "Download files from the Cencora secure file transfer site"
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+  "beautifulsoup4>=4.13.0"
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
