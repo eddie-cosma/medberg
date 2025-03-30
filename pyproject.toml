@@ -22,7 +22,11 @@ classifiers = [
 keywords = ["amerisource", "cencora"]
 
 [project.optional-dependencies]
-dev = ["black==25.1.0"]
+dev = [
+    "black==25.1.0",
+    "pytest",
+    "python-dotenv"
+]
 
 [project.urls]
 Homepage = "https://github.com/eddie-cosma/medberg"
