@@ -8,6 +8,7 @@ from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
+from .exceptions import InvalidFileException
 
 class File:
     def __init__(self, conn, name: str, filesize: str, date: datetime):
@@ -121,6 +122,17 @@ class SecureSite:
 
         return files
 
-    def get_file(self, file: File, *args, **kwargs) -> Path:
+    def _match_filename(self, filename: str) -> File | None:
+        """For a given string filename, try to match to a file on the remote site."""
+        for file in self.files:
+            if file.name == filename:
+                return file
+        return None
+
+    def get_file(self, file: File | str, *args, **kwargs) -> Path:
         """Download file from Amerisource secure site"""
-        return file.get(*args, **kwargs)
+
+        if isinstance(file, File) or (file := self._match_filename(file)):
+            return file.get(*args, **kwargs)
+        else:
+            raise InvalidFileException
