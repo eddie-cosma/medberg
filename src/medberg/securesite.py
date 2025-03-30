@@ -1,4 +1,3 @@
-import re
 import shutil
 from datetime import datetime
 from http.cookiejar import CookieJar
@@ -20,12 +19,10 @@ class File:
 
     def __repr__(self) -> str:
         date = datetime.strftime(self.date, "%m/%d/%Y")
-        return f'File(name={self.name}, filesize={self.filesize=}, {date=})'
+        return f"File(name={self.name}, filesize={self.filesize=}, {date=})"
 
     def get(
-            self,
-            save_dir: str | Path | None = None,
-            save_name: str | None = None
+        self, save_dir: str | Path | None = None, save_name: str | None = None
     ) -> Path:
         """Download file from Amerisource secure site"""
 
@@ -46,7 +43,8 @@ class File:
             }
         ).encode()
         contract_post_request = Request(
-            f"{self._conn._base_url}/fileDownloadtolocal.action", data=contract_post_data
+            f"{self._conn._base_url}/fileDownloadtolocal.action",
+            data=contract_post_data,
         )
         with self._conn._opener.open(contract_post_request) as contract_post_response:
             with open(save_dir / save_name, "wb") as price_file:
@@ -103,12 +101,12 @@ class SecureSite:
             return BeautifulSoup(raw_html, "html.parser")
 
     def _parse_customer(self) -> str:
-        return self._soup.find(id='fileDownload_custName')['value']
+        return self._soup.find(id="fileDownload_custName")["value"]
 
     def _parse_files(self) -> list[File]:
         files = []
-        for row in self._soup.find(id='fileDownload').find_all('tr'):
-            if not row.find(id='fileDownload_fileChk'):
+        for row in self._soup.find(id="fileDownload").find_all("tr"):
+            if not row.find(id="fileDownload_fileChk"):
                 # If there is no file in this table row, move on
                 continue
 
@@ -116,12 +114,14 @@ class SecureSite:
             date_string = [part.get_text(strip=True) for part in date_tags]
             date_string = " ".join(date_string)
 
-            files.append(File(
-                conn=self,
-                name=row.find(id="fileDownload_fileChk")['value'],
-                filesize=row.find(title="#size# Bytes").get_text(strip=True),
-                date=datetime.strptime(date_string, "%m/%d/%Y %I:%M:%S %p"),
-            ))
+            files.append(
+                File(
+                    conn=self,
+                    name=row.find(id="fileDownload_fileChk")["value"],
+                    filesize=row.find(title="#size# Bytes").get_text(strip=True),
+                    date=datetime.strptime(date_string, "%m/%d/%Y %I:%M:%S %p"),
+                )
+            )
 
         return files
 

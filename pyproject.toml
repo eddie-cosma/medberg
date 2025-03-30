@@ -21,6 +21,9 @@ classifiers = [
 ]
 keywords = ["amerisource", "cencora"]
 
+[project.optional-dependencies]
+dev = ["black==25.1.0"]
+
 [project.urls]
 Homepage = "https://github.com/eddie-cosma/medberg"
 Issues = "https://github.com/eddie-cosma/medberg/issues"
