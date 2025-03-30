@@ -8,7 +8,8 @@ from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
-from .exceptions import InvalidFileException
+from .exceptions import InvalidFileException, LoginException
+
 
 class File:
     def __init__(self, conn, name: str, filesize: str, date: datetime):
@@ -97,6 +98,8 @@ class SecureSite:
         )
         with self._opener.open(login_post_request) as login_post_response:
             raw_html = login_post_response.read().decode()
+            if "The login information that you entered is invalid." in raw_html:
+                raise LoginException
             return BeautifulSoup(raw_html, "html.parser")
 
     def _parse_customer(self) -> str:
