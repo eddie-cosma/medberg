@@ -1,3 +1,17 @@
+"""File and connection handling for the medberg package.
+
+This file contains two classes: File and SecureSite. The intended usage is to
+start by creating an instance of SecureSite with a valid username and password.
+On instantiation, a connection will be made and authentication will be
+attempted. If successful, the webpage on which files are listed will be parsed
+automatically for a customer name and file list.
+
+The secure site file table contains columns for name, filesize, and upload date,
+which are used to instantiate the File class. Instances are stored in a list
+in SecureSite.files. From here, either the File.get or SecureSite.get_file
+methods can be used to download the needed files.
+"""
+
 import shutil
 from datetime import datetime
 from http.cookiejar import CookieJar
@@ -11,6 +25,13 @@ from .exceptions import InvalidFileException, LoginException
 
 
 class File:
+    """Represents a file available on the secure site.
+
+    File instances are created automatically when a connection to the secure
+    site is established and the list of available files is parsed. They should
+    not be created manually.
+    """
+
     def __init__(self, conn, name: str, filesize: str, date: datetime):
         self._conn = conn
         self.name = name
@@ -24,7 +45,7 @@ class File:
     def get(
         self, save_dir: str | Path | None = None, save_name: str | None = None
     ) -> Path:
-        """Download file from Amerisource secure site"""
+        """Download a file from the Amerisource secure site."""
 
         if save_dir is None:
             save_dir = Path.cwd()
@@ -54,7 +75,11 @@ class File:
 
 
 class SecureSite:
-    """Class for Amerisource tenant account. Used for connection and enumeration."""
+    """Represents a connection to the secure site.
+
+    After the initial connection is established, a list of available files is
+    stored in the self.files variable.
+    """
 
     def __init__(
         self,
@@ -75,11 +100,10 @@ class SecureSite:
         self.files = self._parse_files()
 
     def _connect_and_retrieve_html(self) -> BeautifulSoup:
-        """Get a list of filenames from the Amerisource secure site.
+        """Get a BeautifulSoup object representing the secure site file listing.
 
-        Raises exception if list of files is not obtained.
+        Raises LoginException on authentication failure.
         """
-
         login_get_request = Request(f"{self._base_url}/jsp/Login.jsp")
         with urlopen(login_get_request) as login_get_response:
             self._cookie_processor.https_response(login_get_request, login_get_response)
@@ -101,9 +125,14 @@ class SecureSite:
             return BeautifulSoup(raw_html, "html.parser")
 
     def _parse_customer(self) -> str:
+        """Get the customer name to be passed into the download request.
+
+        Note that a large amount of whitespace is expected.
+        """
         return self._soup.find(id="fileDownload_custName")["value"]
 
     def _parse_files(self) -> list[File]:
+        """Get the list of files available for download."""
         files = []
         for row in self._soup.find(id="fileDownload").find_all("tr"):
             if not row.find(id="fileDownload_fileChk"):
@@ -126,15 +155,18 @@ class SecureSite:
         return files
 
     def _match_filename(self, filename: str) -> File | None:
-        """For a given string filename, try to match to a file on the remote site."""
+        """For a string filename, try to match to a file on the remote site."""
         for file in self.files:
             if file.name == filename:
                 return file
         return None
 
     def get_file(self, file: File | str, *args, **kwargs) -> Path:
-        """Download file from Amerisource secure site"""
+        """Download a file from the Amerisource secure site.
 
+        Raises InvalidFileException if a string is passed as the filename and
+        that filename does not exist on the remote site.
+        """
         if isinstance(file, File) or (file := self._match_filename(file)):
             return file.get(*args, **kwargs)
         else:
