@@ -154,10 +154,10 @@ class SecureSite:
         return latest
 
     def get_file(
-            self,
-            file: File | str,
-            save_dir: str | Path | None = None,
-            save_name: str | None = None,
+        self,
+        file: File | str,
+        save_dir: str | Path | None = None,
+        save_name: str | None = None,
     ) -> Path:
         """Download a file from the Amerisource secure site.
 
