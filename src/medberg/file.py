@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
 class File:
@@ -62,6 +63,56 @@ class File:
     def account_number(self) -> str | None:
         """Get account number if present in filename."""
         return self._filename_parts.get("account_number")
+
+    def matches(self, property_: str, filter_value: Any) -> bool:
+        """For a property, get value and determine if the filter value matches.
+
+        Matching works differently based on the filter value type:
+        - Callables will cause the function to pass the file value as a
+          parameter to the callable and return the result, which should be a
+          boolean. This is useful for, e.g., datetimes, where an exact match is
+          not as useful as a match using other operators like greater/less than.
+        - Iterables (lists, tuples) will cause the file value to be matched
+          against all values in the iterable, recursively. Any single match in
+          the iterable will return true overall.
+        - Other types will generally be matched using strict equality, but if
+          the type of the filter value does not match the type of the file
+          value, the function will first attempt to convert the filter value
+          type to match.
+        - Strings are no different from the other types description, except the
+          wildcard character (*) can be used for basic pattern matching if
+          placed either at the beginning or end of the filter value.
+        """
+        if not hasattr(self, property_):
+            return False
+
+        file_value = getattr(self, property_)
+        if file_value == filter_value:
+            return True
+
+        if callable(filter_value):
+            return filter_value(file_value)
+
+        # If filter is list or tuple, recurse values to see if any matches
+        if isinstance(filter_value, (list, tuple)):
+            return True in [self.matches(property_, value) for value in filter_value]
+
+        # Try to convert filter value type if different from file value type
+        if not type(file_value) == type(filter_value):
+            try:
+                filter_value = type(file_value)(filter_value)
+                return self.matches(property_, filter_value)
+            except (ValueError, TypeError):
+                return False
+
+        # Handle wildcard character (*) in string filters
+        if isinstance(filter_value, str):
+            if filter_value.startswith("*"):
+                return file_value.endswith(filter_value[1:])
+            elif filter_value.endswith("*"):
+                return file_value.startswith(filter_value[:-1])
+
+        return False
 
     def get(self, *args, **kwargs) -> Path:
         """Download a file from the Amerisource secure site."""

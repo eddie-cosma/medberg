@@ -82,3 +82,35 @@ def test_filename_account_number(test_filename):
         date=datetime.now(),
     )
     assert f.account_number == "123456789"
+
+
+@pytest.fixture(scope="module")
+def file():
+    return File(
+        conn=None,
+        name="340B037AM1234567890101.TXT",
+        filesize="1.2M",
+        date=datetime.now(),
+    )
+
+
+def test_match_strings(file):
+    assert file.matches("name", "340B037AM1234567890101.TXT")
+    assert file.matches("filesize", "1.2M")
+    assert file.matches("account_type", "340B")
+    assert file.matches("specification", "037AM")
+    assert file.matches("account_number", "123456789")
+
+
+def test_match_integers(file):
+    assert file.matches("account_number", 123456789)
+
+
+def test_match_callable(file):
+    past_date = datetime(2025, 1, 1, 0, 0, 0)
+    assert file.matches("date", lambda x: x > past_date)
+
+
+def test_match_iterable(file):
+    account_types = ["340B", "GPO", "WAC"]
+    assert file.matches("account_type", account_types)

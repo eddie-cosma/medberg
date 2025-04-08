@@ -16,12 +16,13 @@ import shutil
 from datetime import datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
+from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
-from .exceptions import InvalidFileException, LoginException
+from .exceptions import InvalidFileException, LoginException, InvalidFilterException
 from .file import File
 
 
@@ -111,6 +112,46 @@ class SecureSite:
             if file.name == filename:
                 return file
         return None
+
+    def match_files(self, **kwargs) -> list[File]:
+        """Given a series of filter arguments, return list of matching Files.
+
+        Argument keys should match to file properties and argument values should
+        match to file property values. For example, to return a list of File
+        objects for which account_number = 12345, simply call
+        `match_files(account_number=12345)`. Any number of keyword arguments
+        can be included to further filter the results. Complex logic is
+        available using callables, iterables, and wildcards. For more details,
+        see `File.matches()`.
+        """
+        matched_files = []
+        for file in self.files:
+            is_match = True
+            for arg, value in kwargs.items():
+                if not file.matches(arg, value):
+                    is_match = False
+                    break  # Exclusion is determined; stop evaluating this file
+
+            if is_match:
+                matched_files.append(file)
+
+        return matched_files
+
+    def match_latest_file(self, **kwargs) -> File | None:
+        """Given a series of filter arguments, return newest matching file.
+
+        See `match_files()` for more information on allowed arguments.
+        """
+        matches = self.match_files(**kwargs)
+        if not matches:
+            return None
+
+        latest = matches[0]
+        for match_ in matches:
+            if match_.date > latest.date:
+                latest = match_
+
+        return latest
 
     def get_file(
             self,
