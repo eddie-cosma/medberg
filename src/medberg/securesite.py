@@ -16,13 +16,12 @@ import shutil
 from datetime import datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
-from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
-from .exceptions import InvalidFileException, LoginException, InvalidFilterException
+from .exceptions import InvalidFileException, LoginException
 from .file import File
 
 
