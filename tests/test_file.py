@@ -102,8 +102,20 @@ def test_match_strings(file):
     assert file.matches("account_number", "123456789")
 
 
+def test_mismatch_strings(file):
+    assert file.matches("name", "340B037AM9876543210101.TXT") == False
+    assert file.matches("filesize", "10M") == False
+    assert file.matches("account_type", "WAC") == False
+    assert file.matches("specification", "039A") == False
+    assert file.matches("account_number", "987654321") == False
+
+
 def test_match_integers(file):
     assert file.matches("account_number", 123456789)
+
+
+def test_mismatch_integers(file):
+    assert file.matches("account_number", 987654321) == False
 
 
 def test_match_callable(file):
@@ -111,6 +123,38 @@ def test_match_callable(file):
     assert file.matches("date", lambda x: x > past_date)
 
 
+def test_mismatch_callable(file):
+    past_date = datetime(2025, 1, 1, 0, 0, 0)
+    assert file.matches("date", lambda x: x < past_date) == False
+
+
 def test_match_iterable(file):
     account_types = ["340B", "GPO", "WAC"]
     assert file.matches("account_type", account_types)
+
+
+def test_mismatch_iterable(file):
+    account_types = ["GPO", "WAC"]
+    assert file.matches("account_type", account_types) == False
+
+
+def test_match_none():
+    f = File(
+        conn=None,
+        name="1234567890101.TXT",
+        filesize="1.2M",
+        date=datetime.now(),
+    )
+    assert f.matches("account_type", None)
+    assert f.matches("specification", None)
+
+
+def test_mismatch_none():
+    f = File(
+        conn=None,
+        name="1234567890101.TXT",
+        filesize="1.2M",
+        date=datetime.now(),
+    )
+    assert f.matches("account_number", None) == False
+    assert f.matches("filesize", None) == False
