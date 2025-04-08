@@ -1,1 +1,1 @@
-from .securesite import SecureSite, File
+from .securesite import SecureSite

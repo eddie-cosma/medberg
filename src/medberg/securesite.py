@@ -16,62 +16,14 @@ import shutil
 from datetime import datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
+from typing import Any, Callable
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
-from .exceptions import InvalidFileException, LoginException
-
-
-class File:
-    """Represents a file available on the secure site.
-
-    File instances are created automatically when a connection to the secure
-    site is established and the list of available files is parsed. They should
-    not be created manually.
-    """
-
-    def __init__(self, conn, name: str, filesize: str, date: datetime):
-        self._conn = conn
-        self.name = name
-        self.filesize = filesize
-        self.date = date
-
-    def __repr__(self) -> str:
-        date = datetime.strftime(self.date, "%m/%d/%Y")
-        return f"File(name={self.name}, filesize={self.filesize=}, {date=})"
-
-    def get(
-        self, save_dir: str | Path | None = None, save_name: str | None = None
-    ) -> Path:
-        """Download a file from the Amerisource secure site."""
-
-        if save_dir is None:
-            save_dir = Path.cwd()
-        elif isinstance(save_dir, str):
-            save_dir = Path(save_dir)
-
-        if save_name is None:
-            save_name = self.name
-
-        contract_post_data = urlencode(
-            {
-                "custNmaeSelect": self._conn._customer_name,
-                "fileChk": f"#{self.name}",
-                "dnldoption": "none",
-                "submit": "Download+Now",
-            }
-        ).encode()
-        contract_post_request = Request(
-            f"{self._conn._base_url}/fileDownloadtolocal.action",
-            data=contract_post_data,
-        )
-        with self._conn._opener.open(contract_post_request) as contract_post_response:
-            with open(save_dir / save_name, "wb") as price_file:
-                shutil.copyfileobj(contract_post_response, price_file)
-
-        return save_dir / save_name
+from .exceptions import InvalidFileException, LoginException, InvalidFilterException
+from .file import File
 
 
 class SecureSite:
@@ -161,13 +113,84 @@ class SecureSite:
                 return file
         return None
 
-    def get_file(self, file: File | str, *args, **kwargs) -> Path:
+    def match_files(self, **kwargs) -> list[File]:
+        """Given a series of filter arguments, return list of matching Files.
+
+        Argument keys should match to file properties and argument values should
+        match to file property values. For example, to return a list of File
+        objects for which account_number = 12345, simply call
+        `match_files(account_number=12345)`. Any number of keyword arguments
+        can be included to further filter the results. Complex logic is
+        available using callables, iterables, and wildcards. For more details,
+        see `File.matches()`.
+        """
+        matched_files = []
+        for file in self.files:
+            is_match = True
+            for arg, value in kwargs.items():
+                if not file.matches(arg, value):
+                    is_match = False
+                    break  # Exclusion is determined; stop evaluating this file
+
+            if is_match:
+                matched_files.append(file)
+
+        return matched_files
+
+    def match_latest_file(self, **kwargs) -> File | None:
+        """Given a series of filter arguments, return newest matching file.
+
+        See `match_files()` for more information on allowed arguments.
+        """
+        matches = self.match_files(**kwargs)
+        if not matches:
+            return None
+
+        latest = matches[0]
+        for match_ in matches:
+            if match_.date > latest.date:
+                latest = match_
+
+        return latest
+
+    def get_file(
+        self,
+        file: File | str,
+        save_dir: str | Path | None = None,
+        save_name: str | None = None,
+    ) -> Path:
         """Download a file from the Amerisource secure site.
 
         Raises InvalidFileException if a string is passed as the filename and
         that filename does not exist on the remote site.
         """
         if isinstance(file, File) or (file := self._match_filename(file)):
-            return file.get(*args, **kwargs)
+            pass
         else:
             raise InvalidFileException
+
+        if save_dir is None:
+            save_dir = Path.cwd()
+        elif isinstance(save_dir, str):
+            save_dir = Path(save_dir)
+
+        if save_name is None:
+            save_name = file.name
+
+        contract_post_data = urlencode(
+            {
+                "custNmaeSelect": self._customer_name,
+                "fileChk": f"#{file.name}",
+                "dnldoption": "none",
+                "submit": "Download+Now",
+            }
+        ).encode()
+        contract_post_request = Request(
+            f"{self._base_url}/fileDownloadtolocal.action",
+            data=contract_post_data,
+        )
+        with self._opener.open(contract_post_request) as contract_post_response:
+            with open(save_dir / save_name, "wb") as price_file:
+                shutil.copyfileobj(contract_post_response, price_file)
+
+        return save_dir / save_name

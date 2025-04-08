@@ -21,6 +21,8 @@ pip install medberg
 
 # Usage
 
+## Establishing a connection
+
 Import the SecureSite class from the medberg module.
 
 ```python
@@ -32,6 +34,8 @@ Initialize a connection to the secure site by providing a username and password.
 ```python
 con = SecureSite(username='yourname', password='yourpassword')
 ```
+
+## Reviewing files
 
 A list of files is automatically downloaded at connection time and stored in the
 `files` variable. Files are represented by objects comprising a name, filesize,
@@ -50,6 +54,26 @@ print(con.files[0].filesize)
 print(con.files[0].date)
 # datetime.datetime(2025, 3, 30, 8, 13, 58)
 ```
+
+The library will attempt to automatically extract additional metadata from the
+filename describing account type (e.g., 340B, GPO, WAC), file specification
+(e.g., 037, 039), and account number.
+
+```python
+print(con.files[0].account_type)
+# 340B
+
+print(con.files[0].specification)
+# 037AM
+
+print(con.files[0].account_number)
+# 123456789
+```
+
+If the metadata is not present in the filename, the corresponding property will
+simply evaluate to None.
+
+## Downloading files
 
 Any individual file can be downloaded using the `get` method of the File class.
 Optional parameters can be specified for the save directory (`save_dir`) and
@@ -78,6 +102,55 @@ con.get_file('039A_012345678_0101.TXT')
 
 When a file is downloaded using either of the methods above, the return value
 will be a pathlib Path object pointing to the local file.
+
+## Filtering files
+
+The list of files obtained from the server can be filtered using the
+`match_files()` method, which can take any number of arguments in the format
+file_property=filter_value. For example, to retrieve all files with account
+number 123456789, you can call `match_files(account_number="123456789")`. The
+result will be a list of File objects matching the specified arguments.
+
+```python
+con.match_files(account_number="123456789")
+# [File(name=340B037AM1234567890330.TXT, filesize=self.filesize='1.3MB', date='03/30/2025'),  ...]
+```
+
+Files can be matched on any attribute. In cases where the file property type
+differs from the filter value type, the filter value will be converted to the
+correct type automatically. For example, the account number above was filtered
+using a string (as account_number is stored in the file class), but it can just
+as well be filtered using an integer:
+
+```python
+con.match_files(account_number=123456789)
+# [File(name=340B037AM1234567890330.TXT, filesize=self.filesize='1.3MB', date='03/30/2025'),  ...]
+```
+
+String filter values can contain a wildcard (&ast;) at the beginning or end of
+the filter. For example, `match_files(file_specification="039*")` will match
+"039", "039A", "039AM", etc.
+
+List and tuple filters will cause a match if any one of the inner values
+matches. Effectively, this acts as a nested OR filter.
+
+Callables can also be passed to allow for more complex filtering. For example,
+we can get all files from the current month as follows:
+
+```python
+from datetime import datetime
+
+current_month = datetime.now().month
+current_year = datetime.now().year
+con.match_files(date=lambda x: x >= datetime(current_year, current_month, 1))
+```
+
+Multiple filter arguments can be passed together to create a more specific
+filter.
+
+To get a single file with the most recent upload time that matches a filter or
+series of filters, use `match_latest_file()`. This method takes the same
+arguments as the `match_files()` method.
 
 # Contributing
 
