@@ -99,6 +99,10 @@ def test_match_strings(file):
     assert file.matches("filesize", "1.2M")
     assert file.matches("account_type", "340B")
     assert file.matches("specification", "037AM")
+    assert file.matches("specification", "*37AM")
+    assert file.matches("specification", "*037AM")
+    assert file.matches("specification", "037*")
+    assert file.matches("specification", "037AM*")
     assert file.matches("account_number", "123456789")
 
 
@@ -107,6 +111,8 @@ def test_mismatch_strings(file):
     assert file.matches("filesize", "10M") == False
     assert file.matches("account_type", "WAC") == False
     assert file.matches("specification", "039A") == False
+    assert file.matches("specification", "*39A") == False
+    assert file.matches("specification", "039*") == False
     assert file.matches("account_number", "987654321") == False
 
 
