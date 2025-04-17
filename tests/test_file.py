@@ -1,8 +1,11 @@
+import re
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from medberg.file import File
+from medberg.exceptions import EmptyBufferException, MissingRowPatternException
+from medberg.file import File, RowPattern
 
 
 def test_file_download(connection, tmp_path):
@@ -164,3 +167,61 @@ def test_mismatch_none():
     )
     assert f.matches("account_number", None) == False
     assert f.matches("filesize", None) == False
+
+
+def test_buffer(connection, tmp_path):
+    test_file = connection.files[0]
+    test_file.get(save_dir=tmp_path)
+    test_file.row_pattern = RowPattern.MATCH_ALL
+    with test_file as f:
+        assert len(f._row_buffer) > 0
+        f.filter_(lambda x: x.raw.startswith("0"))
+
+    with open(tmp_path / test_file.name) as f:
+        for line in f:
+            assert line.startswith("0")
+
+
+def test_dump_failure(connection, tmp_path):
+    test_file = connection.files[0]
+    test_file.get(save_dir=tmp_path)
+    test_file.row_pattern = RowPattern.MATCH_ALL
+    with pytest.raises(EmptyBufferException):
+        with test_file as f:
+            assert len(f._row_buffer) > 0
+            f.filter_(lambda x: False)
+
+
+def test_missing_row_pattern():
+    test_file = File(
+        conn=None,
+        name="1234567890101.TXT",
+        filesize="1.2M",
+        date=datetime.now(),
+    )
+    test_file.location = "/placeholder"
+    with pytest.raises(MissingRowPatternException):
+        with test_file:
+            pass
+
+
+def test_filter(tmp_path):
+    with open(Path(tmp_path) / "test.txt", "w") as f:
+        f.write(
+            "00000000000111111  222222222333333333\n"
+            "44444444444555555  666666666777777777\n"
+        )
+
+    test_file = File(
+        conn=None,
+        name="1234567890101.TXT",
+        filesize="1.2M",
+        date=datetime.now(),
+    )
+    test_file.location = Path(tmp_path) / "test.txt"
+    test_file.row_pattern = RowPattern.ICS_039A
+    with test_file as f:
+        f.filter_(lambda x: x.parts["ndc11"] == "44444444444")
+
+    assert len(f._row_buffer) == 1
+    assert f._row_buffer[0].parts["ndc11"] == "44444444444"

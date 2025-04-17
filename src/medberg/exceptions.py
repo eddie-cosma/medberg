@@ -23,3 +23,18 @@ class InvalidFilterException(Exception):
     def __init__(self):
         message = "The specified filter is invalid. Please ensure the filter value is a string, integer, callable, or valid iterable (list, tuple)."
         super().__init__(message)
+
+
+class MissingRowPatternException(Exception):
+    """Raised when attempting to parse a file without a row pattern."""
+
+    def __init__(self):
+        message = "A row pattern must be specified before attempting to parse a file. A pattern could not be automatically determined. Set one manually to continue."
+
+
+class EmptyBufferException(Exception):
+    """Raised when attempting to dump am empty buffer to disk."""
+
+    def __init__(self):
+        message = "There was an error loading the saved file. To prevent data loss, no changes to the file have been made."
+        super().__init__(message)

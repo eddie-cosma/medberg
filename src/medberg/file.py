@@ -1,7 +1,24 @@
 import re
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+from .exceptions import EmptyBufferException, MissingRowPatternException
+
+
+class RowPattern(Enum):
+    ICS_039A = re.compile(
+        r"^(?P<ndc11>\d{11})(?P<item_id>\d{6}) {2}(?P<price>\d{9})(?P<pack_size>\d{9})$"
+    )
+    MATCH_ALL = re.compile(r"(?P<full_line>.+)")
+
+
+@dataclass
+class Row:
+    raw: str
+    parts: dict[str, str] = None
 
 
 class File:
@@ -20,9 +37,23 @@ class File:
 
         self._filename_parts = self._parse_filename()
 
+        self.location = None
+        self.row_pattern = None
+        self._row_buffer = []
+
     def __repr__(self) -> str:
         date = datetime.strftime(self.date, "%m/%d/%Y")
         return f"File(name={self.name}, filesize={self.filesize=}, {date=})"
+
+    def __enter__(self):
+        if not self.location:
+            self.get()
+
+        self._row_buffer = self._buffer_rows()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._dump_rows()
 
     def _parse_filename(self) -> dict[str, str | None]:
         """Try to parse metadata from the file's name.
@@ -48,6 +79,40 @@ class File:
                 parts[key] = None
 
         return parts
+
+    def _match_row_pattern(self) -> RowPattern | None:
+        """Based on file specification, try to match a row pattern.
+
+        If a specification cannot be matched, return None."""
+        if not self.specification:
+            return None
+
+        if self.specification.startswith("039"):
+            return RowPattern.ICS_039A
+
+        return None
+
+    def _buffer_rows(self) -> list[Row]:
+        """Generate a row buffer from the downloaded file."""
+        if not self.row_pattern:
+            raise MissingRowPatternException
+
+        buffer = []
+        with open(self.location, "r", encoding="utf-8") as file:
+            for line in file:
+                parts = re.match(self.row_pattern.value, line).groupdict()
+                buffer.append(Row(line, parts))
+
+        return buffer
+
+    def _dump_rows(self):
+        """Write the buffered rows back to the file."""
+        if len(self._row_buffer) == 0:
+            raise EmptyBufferException
+
+        with open(self.location, "w", encoding="utf-8") as file:
+            for row in self._row_buffer:
+                file.write(row.raw)
 
     @property
     def account_type(self) -> str | None:
@@ -116,4 +181,14 @@ class File:
 
     def get(self, *args, **kwargs) -> Path:
         """Download a file from the Amerisource secure site."""
-        return self._conn.get_file(file=self, *args, **kwargs)
+        self.location = self._conn.get_file(file=self, *args, **kwargs)
+        self.row_pattern = self._match_row_pattern()
+        return self.location
+
+    def filter_(self, function: Callable) -> None:
+        """Filter rows from the downloaded file using a callable"""
+        self._row_buffer = list(filter(function, self._row_buffer))
+
+    def save(self) -> None:
+        """Save changes after filtering rows."""
+        self._dump_rows()
