@@ -40,6 +40,7 @@ class File:
         self.location = None
         self.row_pattern = None
         self._row_buffer = []
+        self._buffered = False
 
     def __repr__(self) -> str:
         date = datetime.strftime(self.date, "%m/%d/%Y")
@@ -50,10 +51,12 @@ class File:
             self.get()
 
         self._row_buffer = self._buffer_rows()
+        self._buffered = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._dump_rows()
+        self._buffered = False
 
     def _parse_filename(self) -> dict[str, str | None]:
         """Try to parse metadata from the file's name.
@@ -100,8 +103,9 @@ class File:
         buffer = []
         with open(self.location, "r", encoding="utf-8") as file:
             for line in file:
-                parts = re.match(self.row_pattern.value, line).groupdict()
-                buffer.append(Row(line, parts))
+                if line.strip():
+                    parts = re.match(self.row_pattern.value, line).groupdict()
+                    buffer.append(Row(line, parts))
 
         return buffer
 
@@ -187,8 +191,8 @@ class File:
 
     def filter_(self, function: Callable) -> None:
         """Filter rows from the downloaded file using a callable"""
-        self._row_buffer = list(filter(function, self._row_buffer))
+        if not self._buffered:
+            with self as f:
+                f.filter_(function)
 
-    def save(self) -> None:
-        """Save changes after filtering rows."""
-        self._dump_rows()
+        self._row_buffer = list(filter(function, self._row_buffer))

@@ -210,6 +210,7 @@ def test_filter(tmp_path):
         f.write(
             "00000000000111111  222222222333333333\n"
             "44444444444555555  666666666777777777\n"
+            "44444444444888888  999999999000000000\n"
         )
 
     test_file = File(
@@ -222,6 +223,8 @@ def test_filter(tmp_path):
     test_file.row_pattern = RowPattern.ICS_039A
     with test_file as f:
         f.filter_(lambda x: x.parts["ndc11"] == "44444444444")
+        f.filter_(lambda x: x.parts["item_id"] == "555555")
 
     assert len(f._row_buffer) == 1
     assert f._row_buffer[0].parts["ndc11"] == "44444444444"
+    assert f._row_buffer[0].parts["item_id"] == "555555"
