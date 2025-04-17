@@ -75,7 +75,7 @@ simply evaluate to None.
 
 ## Downloading files
 
-Any individual file can be downloaded using the `get` method of the File class.
+Any individual file can be downloaded using the `get()` method of the File class.
 Optional parameters can be specified for the save directory (`save_dir`) and
 local filename (`save_name`). If these are omitted, the file will be saved in
 the current working directory using the original filename by default.
@@ -85,11 +85,11 @@ con.files[0].get(save_dir='C:\\Users\\yourname\\Downloads\\',
                  save_name='new_filename.txt')
 ```
 
-Files can also be downloaded using the `get_file` method of the SecureSite
+Files can also be downloaded using the `get_file()` method of the SecureSite
 class. In this case, the file to download must be specified in the first
 parameter as either an instance of the File class or a string containing the
 filename as it appears on the remote site. The optional `save_dir` and
-`save_name` parameters are again available as with the `File.get` method.
+`save_name` parameters are again available as with the `File.get()` method.
 
 ```python
 # Using a File object
@@ -151,6 +151,61 @@ filter.
 To get a single file with the most recent upload time that matches a filter or
 series of filters, use `match_latest_file()`. This method takes the same
 arguments as the `match_files()` method.
+
+## Manipulating files
+
+Once files are downloaded, you can perform row-level manipulations using the
+`File.filter_()` method. To do this, you must have already downloaded the target
+file using `get()`, otherwise this will be performed for you using the default
+parameters.
+
+Next, a row pattern must be present in `File.row_pattern`. This is essentially a
+regex that defines the named capture groups of each line within the file. When
+the file is downloaded, the library will attempt to match a row pattern based on
+the parsed specification. If this fails, you must set it manually, e.g.:
+
+```python
+file.row_pattern = RowPattern.ICS_039A
+```
+
+Filters are defined as lambda functions based on row properies. Each Row object
+contains two properties: `raw`, which is simply a raw string representation of
+the row from the file, and `parts`, which contains the parsed elements from the
+row in a dictionary. Take the following row as an example:
+
+```text
+11111111111222222  333333333444444444
+```
+
+When parsed with the ICS_039A row pattern, `parts` results as the following:
+
+```python
+{
+    "ndc11": "11111111111",
+    "item_id": "222222",
+    "price": "333333333",
+    "pack_size": "444444444"
+}
+```
+
+You could filter **in** rows that contain an NDC-11 beginning with 11111 with
+the following lambda:
+
+```python
+file.filter_(lambda row: row.parts['ndc11'].startswith("11111"))
+```
+
+If called as a standalone function, `filter_()` will open the file, filter rows,
+and save the result on its own. If multiple applications of `filter_()` need to
+be performed, it's recommended to use a `with` block, which opens and saves the
+file at the beginning and end of the block, respectively.
+
+```python
+with file as f:
+    # Writing to disk occurs only after the final filter is applied
+    f.filter_(lambda row: row.parts['ndc11'].startswith("11111"))
+    f.filter_(lambda row: int(row.parts['price']) / 1000 > 100)
+```
 
 # Contributing
 
