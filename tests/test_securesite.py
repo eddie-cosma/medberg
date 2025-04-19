@@ -21,7 +21,7 @@ def test_secure_site_bad_auth():
 
 
 def test_file_download_by_name(connection, tmp_path):
-    while True:
+    for _ in range(5):
         try:
             test_file_name = connection.files[0].name
             connection.get_file(test_file_name, save_dir=tmp_path, save_name="test.txt")
