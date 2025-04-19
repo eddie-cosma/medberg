@@ -78,18 +78,21 @@ simply evaluate to None.
 Any individual file can be downloaded using the `get()` method of the File class.
 Optional parameters can be specified for the save directory (`save_dir`) and
 local filename (`save_name`). If these are omitted, the file will be saved in
-the current working directory using the original filename by default.
+the current working directory using the original filename by default. Five
+attempts will be made to download the file by default. This can be overriden
+with the `max_tries` parameter.
 
 ```python
 con.files[0].get(save_dir='C:\\Users\\yourname\\Downloads\\',
-                 save_name='new_filename.txt')
+                 save_name='new_filename.txt',
+                 max_tries=10)
 ```
 
 Files can also be downloaded using the `get_file()` method of the SecureSite
 class. In this case, the file to download must be specified in the first
 parameter as either an instance of the File class or a string containing the
-filename as it appears on the remote site. The optional `save_dir` and
-`save_name` parameters are again available as with the `File.get()` method.
+filename as it appears on the remote site. Other, optional arguments, exceptions
+raised, and return values are the same as for the `File.get()` method.
 
 ```python
 # Using a File object
