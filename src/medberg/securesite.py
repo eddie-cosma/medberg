@@ -157,7 +157,9 @@ class SecureSite:
 
         return latest
 
-    def _process_download(self, contract_post_request, save_dir, save_name):
+    def _process_download(
+        self, contract_post_request: Request, save_dir: Path, save_name: str
+    ) -> None:
         with self._opener.open(contract_post_request) as contract_post_response:
             success_status = contract_post_response.status == 200
             file_contents = contract_post_response.read()
