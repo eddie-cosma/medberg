@@ -21,7 +21,11 @@ from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
-from .exceptions import InvalidFileException, LoginException
+from .exceptions import (
+    InvalidFileException,
+    LoginException,
+    FileDownloadFailureException,
+)
 from .file import File
 
 
@@ -189,6 +193,11 @@ class SecureSite:
             data=contract_post_data,
         )
         with self._opener.open(contract_post_request) as contract_post_response:
+            success_status = contract_post_response.status == 200
+            download_failure = b"Some Error Occured!!" in contract_post_response.read()
+            if download_failure or not success_status:
+                raise FileDownloadFailureException
+
             with open(save_dir / save_name, "wb") as price_file:
                 shutil.copyfileobj(contract_post_response, price_file)
 

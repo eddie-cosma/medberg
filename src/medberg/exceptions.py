@@ -17,6 +17,13 @@ class InvalidFileException(Exception):
         super().__init__(message)
 
 
+class FileDownloadFailureException(Exception):
+    """Raised when a file download fails."""
+
+    def __init__(self):
+        message = "The specified file failed to download. This sometimes occurs because of rate limiting on the secure site."
+
+
 class InvalidFilterException(Exception):
     """Raised when an invalid filter is applied to a list of Files."""
 
