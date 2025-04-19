@@ -1,3 +1,6 @@
+from random import randint
+from time import sleep
+
 import pytest
 
 from medberg import SecureSite
@@ -23,4 +26,5 @@ def test_file_download_by_name(connection, tmp_path):
 
 def test_file_download_missing_file(connection, tmp_path):
     with pytest.raises(InvalidFileException):
+        sleep(randint(4, 12))
         connection.get_file("not_real.txt", save_dir=tmp_path)

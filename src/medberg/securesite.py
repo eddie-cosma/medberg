@@ -12,16 +12,21 @@ in SecureSite.files. From here, either the File.get or SecureSite.get_file
 methods can be used to download the needed files.
 """
 
-import shutil
 from datetime import datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
+from random import randint
+from time import sleep
 from urllib.parse import urlencode
 from urllib.request import urlopen, Request, HTTPCookieProcessor, build_opener
 
 from bs4 import BeautifulSoup
 
-from .exceptions import InvalidFileException, LoginException
+from .exceptions import (
+    InvalidFileException,
+    LoginException,
+    FileDownloadFailureException,
+)
 from .file import File
 
 
@@ -152,16 +157,32 @@ class SecureSite:
 
         return latest
 
+    def _process_download(self, contract_post_request, save_dir, save_name):
+        with self._opener.open(contract_post_request) as contract_post_response:
+            success_status = contract_post_response.status == 200
+            file_contents = contract_post_response.read()
+
+            download_failure = b"Some Error Occured!!" in file_contents
+            if download_failure or not success_status:
+                raise FileDownloadFailureException
+
+            with open(save_dir / save_name, "wb") as price_file:
+                price_file.write(file_contents)
+
     def get_file(
         self,
         file: File | str,
         save_dir: str | Path | None = None,
         save_name: str | None = None,
+        max_tries: int = 5,
     ) -> Path:
         """Download a file from the Amerisource secure site.
 
         Raises InvalidFileException if a string is passed as the filename and
         that filename does not exist on the remote site.
+
+        Raises FileDownloadFailureException if the file could not be downloaded
+        after max_tries attempts.
         """
         if isinstance(file, File) or (file := self._match_filename(file)):
             pass
@@ -188,8 +209,17 @@ class SecureSite:
             f"{self._base_url}/fileDownloadtolocal.action",
             data=contract_post_data,
         )
-        with self._opener.open(contract_post_request) as contract_post_response:
-            with open(save_dir / save_name, "wb") as price_file:
-                shutil.copyfileobj(contract_post_response, price_file)
+
+        for try_num in range(max_tries):
+            try:
+                self._process_download(contract_post_request, save_dir, save_name)
+            except FileDownloadFailureException:
+                if try_num == max_tries - 1:
+                    raise
+                else:
+                    sleep(randint(4, 12))
+                    continue
+            else:
+                break
 
         return save_dir / save_name
