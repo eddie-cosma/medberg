@@ -8,19 +8,8 @@ from medberg.exceptions import EmptyBufferException, MissingRowPatternException
 from medberg.file import File, RowPattern
 
 
-def test_file_download(connection, tmp_path):
-    test_file = connection.files[0]
-    test_file.get(save_dir=tmp_path)
-
-    with open(tmp_path / test_file.name) as f:
-        assert f.read() != ""
-
-
-def test_file_download_name_change(connection, tmp_path):
-    test_file = connection.files[0]
-    test_file.get(save_dir=tmp_path, save_name="test.txt")
-
-    with open(tmp_path / "test.txt") as f:
+def test_file_download(file_instance):
+    with open(file_instance.location) as f:
         assert f.read() != ""
 
 
@@ -169,25 +158,21 @@ def test_mismatch_none():
     assert f.matches("filesize", None) == False
 
 
-def test_buffer(connection, tmp_path):
-    test_file = connection.files[0]
-    test_file.get(save_dir=tmp_path)
-    test_file.row_pattern = RowPattern.MATCH_ALL
-    with test_file as f:
+def test_buffer(file_instance):
+    file_instance.row_pattern = RowPattern.MATCH_ALL
+    with file_instance as f:
         assert len(f._row_buffer) > 0
         f.filter_(lambda x: x.raw.startswith("0"))
 
-    with open(tmp_path / test_file.name) as f:
+    with open(file_instance.location) as f:
         for line in f:
             assert line.startswith("0")
 
 
-def test_dump_failure(connection, tmp_path):
-    test_file = connection.files[0]
-    test_file.get(save_dir=tmp_path)
-    test_file.row_pattern = RowPattern.MATCH_ALL
+def test_dump_failure(file_instance):
+    file_instance.row_pattern = RowPattern.MATCH_ALL
     with pytest.raises(EmptyBufferException):
-        with test_file as f:
+        with file_instance as f:
             assert len(f._row_buffer) > 0
             f.filter_(lambda x: False)
 
