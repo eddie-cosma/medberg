@@ -194,11 +194,13 @@ class SecureSite:
         )
         with self._opener.open(contract_post_request) as contract_post_response:
             success_status = contract_post_response.status == 200
-            download_failure = b"Some Error Occured!!" in contract_post_response.read()
+            file_contents = contract_post_response.read()
+
+            download_failure = b"Some Error Occured!!" in file_contents
             if download_failure or not success_status:
                 raise FileDownloadFailureException
 
             with open(save_dir / save_name, "wb") as price_file:
-                shutil.copyfileobj(contract_post_response, price_file)
+                price_file.write(file_contents)
 
         return save_dir / save_name
