@@ -4,7 +4,11 @@ from time import sleep
 import pytest
 
 from medberg import SecureSite
-from medberg.exceptions import LoginException, InvalidFileException
+from medberg.exceptions import (
+    LoginException,
+    InvalidFileException,
+    FileDownloadFailureException,
+)
 
 
 def test_secure_site_auth(connection):
@@ -17,9 +21,15 @@ def test_secure_site_bad_auth():
 
 
 def test_file_download_by_name(connection, tmp_path):
-    test_file_name = connection.files[0].name
-    sleep(randint(4, 12))
-    connection.get_file(test_file_name, save_dir=tmp_path, save_name="test.txt")
+    while True:
+        try:
+            test_file_name = connection.files[0].name
+            connection.get_file(test_file_name, save_dir=tmp_path, save_name="test.txt")
+        except FileDownloadFailureException:
+            sleep(randint(10, 12))
+            pass
+        else:
+            break
 
     with open(tmp_path / "test.txt") as f:
         assert f.read() != ""
