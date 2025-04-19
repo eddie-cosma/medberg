@@ -18,7 +18,7 @@ def test_secure_site_bad_auth():
 
 def test_file_download_by_name(connection, tmp_path):
     test_file_name = connection.files[0].name
-    sleep(randint(4,12))
+    sleep(randint(4, 12))
     connection.get_file(test_file_name, save_dir=tmp_path, save_name="test.txt")
 
     with open(tmp_path / "test.txt") as f:
