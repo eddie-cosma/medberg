@@ -6,7 +6,6 @@ import pytest
 from dotenv import load_dotenv
 
 from medberg import SecureSite
-from medberg.file import File
 
 
 @pytest.fixture(scope="session")
@@ -20,7 +19,7 @@ def connection():
 @pytest.fixture(scope="session")
 def file_master(connection, tmp_path_factory):
     target_dir = tmp_path_factory.mktemp("data")
-    file = connection.files[0].get(save_dir=target_dir)
+    connection.files[0].get(save_dir=target_dir)
     return connection.files[0]
 
 
