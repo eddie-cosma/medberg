@@ -14,7 +14,6 @@ methods can be used to download the needed files.
 
 from datetime import datetime
 from http.cookiejar import CookieJar
-from pathlib import Path
 from random import randint
 from time import sleep
 from urllib.parse import urlencode
@@ -157,9 +156,7 @@ class SecureSite:
 
         return latest
 
-    def _process_download(
-        self, contract_post_request: Request, save_dir: Path, save_name: str
-    ) -> None:
+    def _process_download(self, contract_post_request: Request) -> bytes:
         with self._opener.open(contract_post_request) as contract_post_response:
             success_status = contract_post_response.status == 200
             file_contents = contract_post_response.read()
@@ -168,16 +165,9 @@ class SecureSite:
             if download_failure or not success_status:
                 raise FileDownloadFailureException
 
-            with open(save_dir / save_name, "wb") as price_file:
-                price_file.write(file_contents)
+            return file_contents
 
-    def get_file(
-        self,
-        file: File | str,
-        save_dir: str | Path | None = None,
-        save_name: str | None = None,
-        max_tries: int = 5,
-    ) -> Path:
+    def get_file(self, file: File | str, max_tries: int = 5) -> bytes:
         """Download a file from the Amerisource secure site.
 
         Raises InvalidFileException if a string is passed as the filename and
@@ -190,14 +180,6 @@ class SecureSite:
             pass
         else:
             raise InvalidFileException
-
-        if save_dir is None:
-            save_dir = Path.cwd()
-        elif isinstance(save_dir, str):
-            save_dir = Path(save_dir)
-
-        if save_name is None:
-            save_name = file.name
 
         contract_post_data = urlencode(
             {
@@ -214,14 +196,10 @@ class SecureSite:
 
         for try_num in range(max_tries):
             try:
-                self._process_download(contract_post_request, save_dir, save_name)
+                return self._process_download(contract_post_request)
             except FileDownloadFailureException:
                 if try_num == max_tries - 1:
                     raise
                 else:
                     sleep(randint(4, 12))
                     continue
-            else:
-                break
-
-        return save_dir / save_name

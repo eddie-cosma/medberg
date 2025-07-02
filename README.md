@@ -76,11 +76,11 @@ simply evaluate to None.
 ## Downloading files
 
 Any individual file can be downloaded using the `get()` method of the File class.
-Optional parameters can be specified for the save directory (`save_dir`) and
-local filename (`save_name`). If these are omitted, the file will be saved in
-the current working directory using the original filename by default. Five
-attempts will be made to download the file by default. This can be overriden
-with the `max_tries` parameter.
+By default, the file contents will be saved to `File.contents`. Optional parameters
+can be specified for the save directory (`save_dir`) and local filename (`save_name`).
+If these are included, the file will also be saved to disk. Five attempts will be
+made to download the file by default. This can be overriden with the `max_tries`
+parameter.
 
 ```python
 con.files[0].get(save_dir='C:\\Users\\yourname\\Downloads\\',
@@ -91,8 +91,8 @@ con.files[0].get(save_dir='C:\\Users\\yourname\\Downloads\\',
 Files can also be downloaded using the `get_file()` method of the SecureSite
 class. In this case, the file to download must be specified in the first
 parameter as either an instance of the File class or a string containing the
-filename as it appears on the remote site. Other, optional arguments, exceptions
-raised, and return values are the same as for the `File.get()` method.
+filename as it appears on the remote site. This method returns a bytes object
+instead of the string saved to `File.contents`.
 
 ```python
 # Using a File object
@@ -102,9 +102,6 @@ con.get_file(file_to_get)
 # Using a string filename
 con.get_file('039A_012345678_0101.TXT')
 ```
-
-When a file is downloaded using either of the methods above, the return value
-will be a pathlib Path object pointing to the local file.
 
 ## Filtering files
 
@@ -199,13 +196,15 @@ file.filter_(lambda row: row.parts['ndc11'].startswith("11111"))
 ```
 
 If called as a standalone function, `filter_()` will open the file, filter rows,
-and save the result on its own. If multiple applications of `filter_()` need to
-be performed, it's recommended to use a `with` block, which opens and saves the
-file at the beginning and end of the block, respectively.
+and save the result on its own. This happens locally inside the `File.contents`
+variable. If the file was saved to disk, the file referenced by the path in
+`File.location` will be updated also. If multiple applications of `filter_()`
+need to be performed, it's recommended to use a `with` block, which buffers and
+saves the file at the beginning and end of the block, respectively.
 
 ```python
 with file as f:
-    # Writing to disk occurs only after the final filter is applied
+    # Writing to object and disk occurs only after the final filter is applied
     f.filter_(lambda row: row.parts['ndc11'].startswith("11111"))
     f.filter_(lambda row: int(row.parts['price']) / 1000 > 100)
 ```

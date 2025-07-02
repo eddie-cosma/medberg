@@ -37,6 +37,7 @@ class File:
 
         self._filename_parts = self._parse_filename()
 
+        self.contents = None
         self.location = None
         self.row_pattern = None
         self._row_buffer = []
@@ -96,27 +97,29 @@ class File:
         return None
 
     def _buffer_rows(self) -> list[Row]:
-        """Generate a row buffer from the downloaded file."""
+        """Generate a row buffer from the file contents."""
         if not self.row_pattern:
             raise MissingRowPatternException
 
         buffer = []
-        with open(self.location, "r", encoding="utf-8") as file:
-            for line in file:
-                if line.strip():
-                    parts = re.match(self.row_pattern.value, line).groupdict()
-                    buffer.append(Row(line, parts))
+        for line in self.contents.splitlines(keepends=True):
+            if line.strip():
+                parts = re.match(self.row_pattern.value, line).groupdict()
+                buffer.append(Row(line, parts))
 
         return buffer
 
     def _dump_rows(self):
-        """Write the buffered rows back to the file."""
+        """Save the buffered rows back to file contents."""
         if len(self._row_buffer) == 0:
             raise EmptyBufferException
 
-        with open(self.location, "w", encoding="utf-8") as file:
-            for row in self._row_buffer:
-                file.write(row.raw)
+        self.contents = "".join([row.raw for row in self._row_buffer])
+
+        if self.location:
+            with open(self.location, "w", encoding="utf-8") as file:
+                for row in self._row_buffer:
+                    file.write(row.raw)
 
     @property
     def account_type(self) -> str | None:
@@ -183,11 +186,29 @@ class File:
 
         return False
 
-    def get(self, *args, **kwargs) -> Path:
+    def get(
+        self,
+        save_dir: str | Path | None = None,
+        save_name: str | None = None,
+        *args,
+        **kwargs,
+    ) -> str:
         """Download a file from the Amerisource secure site."""
-        self.location = self._conn.get_file(file=self, *args, **kwargs)
+
+        raw_contents = self._conn.get_file(file=self, *args, **kwargs)
+        self.contents = raw_contents.decode("utf-8")
+
+        if save_dir:
+            if isinstance(save_dir, str):
+                save_dir = Path(save_dir)
+
+            self.location = save_dir / (save_name or self.name)
+
+            with open(self.location, "wb") as price_file:
+                price_file.write(raw_contents)
+
         self.row_pattern = self._match_row_pattern()
-        return self.location
+        return self.contents
 
     def filter_(self, function: Callable) -> None:
         """Filter rows from the downloaded file using a callable"""

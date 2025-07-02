@@ -190,12 +190,13 @@ def test_missing_row_pattern():
 
 
 def test_filter(tmp_path):
+    file_contents = (
+        "00000000000111111  222222222333333333\n"
+        "44444444444555555  666666666777777777\n"
+        "44444444444888888  999999999000000000\n"
+    )
     with open(Path(tmp_path) / "test.txt", "w") as f:
-        f.write(
-            "00000000000111111  222222222333333333\n"
-            "44444444444555555  666666666777777777\n"
-            "44444444444888888  999999999000000000\n"
-        )
+        f.write(file_contents)
 
     test_file = File(
         conn=None,
@@ -205,6 +206,7 @@ def test_filter(tmp_path):
     )
     test_file.location = Path(tmp_path) / "test.txt"
     test_file.row_pattern = RowPattern.ICS_039A
+    test_file.contents = file_contents
     with test_file as f:
         f.filter_(lambda x: x.parts["ndc11"] == "44444444444")
         f.filter_(lambda x: x.parts["item_id"] == "555555")
