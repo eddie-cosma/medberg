@@ -189,6 +189,34 @@ def test_missing_row_pattern():
             pass
 
 
+def test_to_dataframe(tmp_path):
+    pd = pytest.importorskip("pandas")
+
+    file_contents = (
+        "00000000000111111  222222222333333333\n"
+        "44444444444555555  666666666777777777\n"
+    )
+    with open(Path(tmp_path) / "test.txt", "w") as f:
+        f.write(file_contents)
+
+    test_file = File(
+        conn=None,
+        name="1234567890101.TXT",
+        filesize="1.2M",
+        date=datetime.now(),
+    )
+    test_file.location = Path(tmp_path) / "test.txt"
+    test_file.row_pattern = RowPattern.ICS_039A
+    test_file.contents = file_contents
+
+    df = test_file.to_dataframe()
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 2
+    assert list(df["ndc11"]) == ["00000000000", "44444444444"]
+    assert list(df["item_id"]) == ["111111", "555555"]
+
+
 def test_filter(tmp_path):
     file_contents = (
         "00000000000111111  222222222333333333\n"

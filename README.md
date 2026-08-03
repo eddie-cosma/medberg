@@ -209,6 +209,27 @@ with file as f:
     f.filter_(lambda row: int(row.parts['price']) / 1000 > 100)
 ```
 
+## Exporting to a DataFrame
+
+Once a row pattern has been matched, file contents can be exported to a Pandas
+DataFrame using the `File.to_dataframe()` method. As with `filter_()`, if the
+file has not already been downloaded, this will be performed for you using the
+default parameters. Each column of the resulting DataFrame corresponds to a key
+in the row's `parts` dictionary.
+
+```python
+df = file.to_dataframe()
+#           ndc11  item_id      price pack_size
+# 0  11111111111   222222  333333333 444444444
+```
+
+This method requires the optional `pandas` dependency, which can be installed
+with:
+
+```bash
+pip install medberg[pandas]
+```
+
 # Contributing
 
 Pull requests are welcome. Please ensure all code submitted is formatted
