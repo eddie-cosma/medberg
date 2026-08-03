@@ -217,3 +217,20 @@ class File:
                 f.filter_(function)
 
         self._row_buffer = list(filter(function, self._row_buffer))
+
+    def to_dataframe(self):
+        """Export file contents to Pandas DataFrame"""
+        if not self._buffered:
+            with self as f:
+                f.to_dataframe()
+
+        try:
+            import pandas as pd
+        except ModuleNotFoundError:
+            print(
+                "Pandas must be installed to export file as DataFrame. Please run pip install medberg[pandas] and try again."
+            )
+            raise
+
+        records = [record.parts for record in self._row_buffer]
+        return pd.DataFrame.from_records(records)
