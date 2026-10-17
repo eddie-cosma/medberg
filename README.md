@@ -9,7 +9,7 @@ easier ways to automate FTP-based downloads.)
 
 # Requirements
 
-- Python 3.10 or newer
+- Python 3.11 or newer (CI tests Python 3.11–3.15, including prereleases when needed)
 
 # Installation
 

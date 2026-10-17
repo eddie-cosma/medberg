@@ -10,12 +10,17 @@ authors = [
 ]
 description = "Download files from the Cencora secure file transfer site"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "beautifulsoup4>=4.13.0"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
@@ -23,7 +28,7 @@ keywords = ["amerisource", "cencora"]
 
 [project.optional-dependencies]
 dev = [
-    "black==25.1.0",
+    "black==26.10.1",
     "pytest",
     "python-dotenv"
 ]
