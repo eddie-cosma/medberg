@@ -48,7 +48,7 @@ class File:
         return f"File(name={self.name}, filesize={self.filesize=}, {date=})"
 
     def __enter__(self):
-        if not self.location:
+        if self.contents is None:
             self.get()
 
         self._row_buffer = self._buffer_rows()
@@ -56,8 +56,11 @@ class File:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._dump_rows()
-        self._buffered = False
+        try:
+            if exc_type is None:
+                self._dump_rows()
+        finally:
+            self._buffered = False
 
     def _parse_filename(self) -> dict[str, str | None]:
         """Try to parse metadata from the file's name.
@@ -102,9 +105,12 @@ class File:
             raise MissingRowPatternException
 
         buffer = []
-        for line in self.contents.splitlines(keepends=True):
+        for line_number, line in enumerate(self.contents.splitlines(keepends=True), 1):
             if line.strip():
-                parts = re.match(self.row_pattern.value, line).groupdict()
+                match = re.match(self.row_pattern.value, line)
+                if match is None:
+                    raise ValueError(f"{self.name}: invalid row at line {line_number}")
+                parts = match.groupdict()
                 buffer.append(Row(line, parts))
 
         return buffer
@@ -215,6 +221,7 @@ class File:
         if not self._buffered:
             with self as f:
                 f.filter_(function)
+            return
 
         self._row_buffer = list(filter(function, self._row_buffer))
 
@@ -222,7 +229,7 @@ class File:
         """Export file contents to Pandas DataFrame"""
         if not self._buffered:
             with self as f:
-                f.to_dataframe()
+                return f.to_dataframe()
 
         try:
             import pandas as pd

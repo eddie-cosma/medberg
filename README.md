@@ -245,6 +245,32 @@ to use it in REPLs:
 pip install -e '.[dev]'
 ```
 
+## Running tests
+
+Install the test dependencies and run the offline tests:
+
+```bash
+python -m pip install -e '.[dev,pandas]'
+python -m pytest
+python -m black . --check
+```
+
+The default test run uses synthetic files and HTML in `tests/fixtures`.
+It does not require Cencora credentials. A test fixture blocks network access
+for all tests except those marked `integration`. Tests use temporary directories
+for file writes. Pandas is included above so that DataFrame tests also run.
+
+Live tests are excluded by default. To run them, set `AMERISOURCE_USERNAME` and
+`AMERISOURCE_PASSWORD` in your environment or local `.env` file, then run:
+
+```bash
+python -m pytest -m integration tests/integration
+```
+
+This command logs in to Cencora, lists files, and downloads one file into memory.
+Live tests are skipped if credentials are missing. Do not commit credentials or
+customer files. Add synthetic fixtures for new file layouts and error cases.
+
 # License
 
 This software is licensed under
