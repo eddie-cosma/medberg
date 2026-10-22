@@ -39,3 +39,9 @@ pandas = [
 [project.urls]
 Homepage = "https://github.com/eddie-cosma/medberg"
 Issues = "https://github.com/eddie-cosma/medberg/issues"
+
+[tool.pytest.ini_options]
+addopts = "-m 'not integration' --strict-markers"
+markers = [
+    "integration: optional tests that contact the live Cencora site",
+]

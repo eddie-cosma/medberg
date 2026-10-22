@@ -1,31 +1,37 @@
-import copy
-import os
-import shutil
+import socket
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
-from dotenv import load_dotenv
 
-from medberg import SecureSite
-
-
-@pytest.fixture(scope="session")
-def connection():
-    load_dotenv()
-    username = os.getenv("AMERISOURCE_USERNAME")
-    password = os.getenv("AMERISOURCE_PASSWORD")
-    return SecureSite(username, password)
+from medberg.file import File
 
 
-@pytest.fixture(scope="session")
-def file_master(connection, tmp_path_factory):
-    target_dir = tmp_path_factory.mktemp("data")
-    connection.files[0].get(save_dir=target_dir)
-    return connection.files[0]
+@pytest.fixture
+def fixture_dir():
+    return Path(__file__).parent / "fixtures"
 
 
-@pytest.fixture(scope="function")
-def file_instance(file_master, tmp_path):
-    file = copy.copy(file_master)
-    file.conn = None
-    file.location = shutil.copy(file_master.location, tmp_path)
+@pytest.fixture(autouse=True)
+def block_network(request, monkeypatch):
+    if request.node.get_closest_marker("integration"):
+        return
+
+    def deny_network(*args, **kwargs):
+        pytest.fail("Network access is disabled in offline tests")
+
+    monkeypatch.setattr(socket.socket, "connect", deny_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", deny_network)
+    monkeypatch.setattr(socket, "getaddrinfo", deny_network)
+
+
+@pytest.fixture
+def file_instance(fixture_dir, tmp_path):
+    name = "039A_012345678_0101.TXT"
+    contents = (fixture_dir / name).read_bytes()
+    connection = Mock()
+    connection.get_file.return_value = contents
+    file = File(connection, name, "148 B", datetime(2025, 1, 1, 8, 13, 58))
+    file.get(save_dir=tmp_path)
     return file

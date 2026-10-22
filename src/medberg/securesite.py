@@ -162,7 +162,9 @@ class SecureSite:
             file_contents = contract_post_response.read()
 
             download_failure = b"Some Error Occured!!" in file_contents
-            if download_failure or not success_status:
+            prefix = file_contents.lstrip().lower()
+            html_response = prefix.startswith((b"<!doctype html", b"<html"))
+            if download_failure or html_response or not success_status:
                 raise FileDownloadFailureException
 
             return file_contents

@@ -169,11 +169,13 @@ def test_buffer(file_instance):
 
 
 def test_dump_failure(file_instance):
+    original = file_instance.location.read_bytes()
     file_instance.row_pattern = RowPattern.MATCH_ALL
     with pytest.raises(EmptyBufferException):
         with file_instance as f:
             assert len(f._row_buffer) > 0
             f.filter_(lambda x: False)
+    assert file_instance.location.read_bytes() == original
 
 
 def test_missing_row_pattern():
@@ -183,7 +185,7 @@ def test_missing_row_pattern():
         filesize="1.2M",
         date=datetime.now(),
     )
-    test_file.location = "/placeholder"
+    test_file.contents = "unparsed row\n"
     with pytest.raises(MissingRowPatternException):
         with test_file:
             pass
@@ -242,3 +244,87 @@ def test_filter(tmp_path):
     assert len(f._row_buffer) == 1
     assert f._row_buffer[0].parts["ndc11"] == "44444444444"
     assert f._row_buffer[0].parts["item_id"] == "555555"
+
+
+def test_parse_synthetic_rows(file_instance):
+    rows = file_instance._buffer_rows()
+    assert len(rows) == 3
+    assert rows[0].parts == {
+        "ndc11": "00000000000",
+        "item_id": "000111",
+        "price": "000001234",
+        "pack_size": "000000010",
+    }
+    assert rows[1].parts["ndc11"] == "44444444444"
+
+
+@pytest.mark.parametrize("contents", ["", "\n  \n"])
+def test_empty_file_preserves_disk(file_instance, contents):
+    file_instance.contents = contents
+    file_instance.location.write_text(contents, encoding="utf-8")
+    with pytest.raises(EmptyBufferException):
+        with file_instance:
+            pass
+    assert file_instance.location.read_text(encoding="utf-8") == contents
+    assert not file_instance._buffered
+
+
+def test_malformed_row_preserves_disk(file_instance):
+    original = file_instance.location.read_bytes()
+    file_instance.contents += "malformed row\n"
+    with pytest.raises(ValueError, match="line 5"):
+        with file_instance:
+            pass
+    assert file_instance.location.read_bytes() == original
+
+
+def test_failed_filter_preserves_source(file_instance):
+    original = file_instance.location.read_bytes()
+    with pytest.raises(RuntimeError, match="transformation failed"):
+        with file_instance as file:
+            file.filter_(lambda row: row.parts["item_id"] == "000111")
+            raise RuntimeError("transformation failed")
+    assert file_instance.location.read_bytes() == original
+    assert file_instance.contents.encode() == original
+    assert not file_instance._buffered
+
+
+def test_filter_output(file_instance):
+    expected = file_instance.contents.splitlines(keepends=True)[0]
+    file_instance.filter_(lambda row: row.parts["item_id"] == "000111")
+    assert file_instance.contents == expected
+    assert file_instance.location.read_text(encoding="utf-8") == expected
+
+
+def test_memory_only_file_does_not_download_again(file_instance):
+    file_instance.location = None
+    file_instance._conn.get_file.side_effect = AssertionError("Unexpected download")
+    file_instance.filter_(lambda row: row.parts["item_id"] == "000111")
+    assert len(file_instance.contents.splitlines()) == 1
+
+
+def test_download_preserves_bytes(file_instance, tmp_path, fixture_dir):
+    file_instance.get(save_dir=tmp_path, save_name="download.txt")
+    expected = (fixture_dir / file_instance.name).read_bytes()
+    assert (tmp_path / "download.txt").read_bytes() == expected
+    assert file_instance.contents == expected.decode("utf-8")
+
+
+def test_filter_evaluates_each_row_once(file_instance):
+    seen = []
+
+    def keep(row):
+        seen.append(row.parts["item_id"])
+        return True
+
+    file_instance.filter_(keep)
+    assert seen == ["000111", "555555", "888888"]
+
+
+def test_failed_empty_filter_keeps_original_exception(file_instance):
+    original = file_instance.location.read_bytes()
+    with pytest.raises(RuntimeError, match="transformation failed"):
+        with file_instance as file:
+            file.filter_(lambda row: False)
+            raise RuntimeError("transformation failed")
+    assert file_instance.location.read_bytes() == original
